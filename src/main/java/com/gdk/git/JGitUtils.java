@@ -1,23 +1,17 @@
 package com.gdk.git;
 
+import com.gdk.git.Constants.MergeType;
+import com.gdk.git.PathModel.PathChangeModel;
+import com.gdk.git.TicketModel.TicketAction;
+import com.gdk.git.TicketModel.TicketLink;
 import java.io.File;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.eclipse.jgit.api.CloneCommand;
 import org.eclipse.jgit.api.FetchCommand;
@@ -32,39 +26,16 @@ import org.eclipse.jgit.diff.DiffFormatter;
 import org.eclipse.jgit.diff.RawTextComparator;
 import org.eclipse.jgit.dircache.DirCache;
 import org.eclipse.jgit.dircache.DirCacheEntry;
-import org.eclipse.jgit.errors.AmbiguousObjectException;
-import org.eclipse.jgit.errors.ConfigInvalidException;
-import org.eclipse.jgit.errors.IncorrectObjectTypeException;
-import org.eclipse.jgit.errors.LargeObjectException;
-import org.eclipse.jgit.errors.MissingObjectException;
-import org.eclipse.jgit.errors.RevisionSyntaxException;
-import org.eclipse.jgit.errors.StopWalkException;
+import org.eclipse.jgit.errors.*;
 import org.eclipse.jgit.internal.JGitText;
-import org.eclipse.jgit.lib.AnyObjectId;
-import org.eclipse.jgit.lib.BlobBasedConfig;
-import org.eclipse.jgit.lib.CommitBuilder;
+import org.eclipse.jgit.lib.*;
 import org.eclipse.jgit.lib.Constants;
-import org.eclipse.jgit.lib.FileMode;
-import org.eclipse.jgit.lib.ObjectId;
-import org.eclipse.jgit.lib.ObjectInserter;
-import org.eclipse.jgit.lib.ObjectLoader;
-import org.eclipse.jgit.lib.PersonIdent;
-import org.eclipse.jgit.lib.Ref;
-import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.RefUpdate.Result;
-import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.RepositoryCache.FileKey;
-import org.eclipse.jgit.lib.StoredConfig;
-import org.eclipse.jgit.lib.TreeFormatter;
 import org.eclipse.jgit.merge.MergeStrategy;
 import org.eclipse.jgit.merge.RecursiveMerger;
 import org.eclipse.jgit.merge.ThreeWayMerger;
-import org.eclipse.jgit.revwalk.RevBlob;
-import org.eclipse.jgit.revwalk.RevCommit;
-import org.eclipse.jgit.revwalk.RevObject;
-import org.eclipse.jgit.revwalk.RevSort;
-import org.eclipse.jgit.revwalk.RevTree;
-import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.revwalk.*;
 import org.eclipse.jgit.revwalk.filter.CommitTimeRevFilter;
 import org.eclipse.jgit.revwalk.filter.RevFilter;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
@@ -73,21 +44,10 @@ import org.eclipse.jgit.transport.FetchResult;
 import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.treewalk.TreeWalk;
-import org.eclipse.jgit.treewalk.filter.AndTreeFilter;
-import org.eclipse.jgit.treewalk.filter.OrTreeFilter;
-import org.eclipse.jgit.treewalk.filter.PathFilter;
-import org.eclipse.jgit.treewalk.filter.PathFilterGroup;
-import org.eclipse.jgit.treewalk.filter.PathSuffixFilter;
-import org.eclipse.jgit.treewalk.filter.TreeFilter;
+import org.eclipse.jgit.treewalk.filter.*;
 import org.eclipse.jgit.util.FS;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.gdk.git.Constants.MergeType;
-import com.gdk.git.Keys;
-import com.gdk.git.PathModel.PathChangeModel;
-import com.gdk.git.TicketModel.TicketAction;
-import com.gdk.git.TicketModel.TicketLink;
 
 /**
  * Collection of static methods for retrieving information from a repository.
@@ -159,8 +119,7 @@ public class JGitUtils {
      * @return CloneResult
      * @throws Exception
      */
-    public static CloneResult cloneRepository(File repositoriesFolder, String name, String fromUrl)
-            throws Exception {
+    public static CloneResult cloneRepository(File repositoriesFolder, String name, String fromUrl) throws Exception {
         return cloneRepository(repositoriesFolder, name, fromUrl, true, null);
     }
 
@@ -315,20 +274,13 @@ public class JGitUtils {
             permValue = perm;
         }
 
-        ;
-
         public String getConfigValue() {
             return configValue;
         }
 
-        ;
-
         public int getPerm() {
             return permValue;
         }
-
-        ;
-
     }
 
     private static class GitConfigSharedRepository {
@@ -402,14 +354,22 @@ public class JGitUtils {
      * @return Upon successful completion, a value of 0 is returned. Otherwise, a value of -1 is returned.
      */
     public static int adjustSharedPerm(File path, GitConfigSharedRepository configShared) {
-        if (!configShared.isShared()) return 0;
-        if (!path.exists()) return -1;
+        if (!configShared.isShared()) {
+			return 0;
+		}
+        if (!path.exists()) {
+			return -1;
+		}
 
         int perm = configShared.getPerm();
         JnaUtils.Filestat stat = JnaUtils.getFilestat(path);
-        if (stat == null) return -1;
+        if (stat == null) {
+			return -1;
+		}
         int mode = stat.mode;
-        if (mode < 0) return -1;
+        if (mode < 0) {
+			return -1;
+		}
 
         // Now, here is the kicker: Under Linux, chmod'ing a sgid file whose guid is different from the process'
         // effective guid will reset the sgid flag of the file. Since there is no way to get the sgid flag back in
@@ -424,9 +384,13 @@ public class JGitUtils {
         }
 
         // If the owner has no write access, delete it from group and other, too.
-        if ((mode & JnaUtils.S_IWUSR) == 0) perm &= ~0222;
+        if ((mode & JnaUtils.S_IWUSR) == 0) {
+			perm &= ~0222;
+		}
         // If the owner has execute access, set it for all blocks that have read access.
-        if ((mode & JnaUtils.S_IXUSR) == JnaUtils.S_IXUSR) perm |= (perm & 0444) >> 2;
+        if ((mode & JnaUtils.S_IXUSR) == JnaUtils.S_IXUSR) {
+			perm |= (perm & 0444) >> 2;
+		}
 
         if (configShared.isCustom()) {
             // Use the custom value for access permissions.
@@ -524,13 +488,11 @@ public class JGitUtils {
                         list.add(repository);
                     } else if (searchSubfolders && file.canRead()) {
                         // look for repositories in subfolders
-                        list.addAll(getRepositoryList(basePath, file, onlyBare, searchSubfolders,
-                                nextDepth, patterns));
+                        list.addAll(getRepositoryList(basePath, file, onlyBare, searchSubfolders, nextDepth, patterns));
                     }
                 } else if (searchSubfolders && file.canRead()) {
                     // look for repositories in subfolders
-                    list.addAll(getRepositoryList(basePath, file, onlyBare, searchSubfolders,
-                            nextDepth, patterns));
+                    list.addAll(getRepositoryList(basePath, file, onlyBare, searchSubfolders, nextDepth, patterns));
                 }
             }
         }
@@ -891,7 +853,6 @@ public class JGitUtils {
      * @return list of files in specified path
      */
     public static List<PathModel> getFilesInPath2(Repository repository, String path, RevCommit commit) {
-
         List<PathModel> list = new ArrayList<PathModel>();
         if (!hasCommits(repository)) {
             return list;
@@ -958,6 +919,7 @@ public class JGitUtils {
         if (!hasCommits(repository)) {
             return list;
         }
+
         RevWalk rw = new RevWalk(repository);
         try {
             if (commit == null) {
@@ -977,9 +939,7 @@ public class JGitUtils {
 
                     try {
                         if (!tw.isSubtree() && (tw.getFileMode(0) != FileMode.GITLINK)) {
-
                             size = tw.getObjectReader().getObjectSize(objectId, Constants.OBJ_BLOB);
-
                             if (isPossibleFilestoreItem(size)) {
                                 filestoreItem = getFilestoreItem(tw.getObjectReader().open(objectId));
                             }
@@ -1107,8 +1067,7 @@ public class JGitUtils {
      * @param objectId
      * @return list of files in repository with a matching extension
      */
-    public static List<PathModel> getDocuments(Repository repository, List<String> extensions,
-                                               String objectId) {
+    public static List<PathModel> getDocuments(Repository repository, List<String> extensions, String objectId) {
         List<PathModel> list = new ArrayList<PathModel>();
         if (!hasCommits(repository)) {
             return list;
@@ -1180,6 +1139,7 @@ public class JGitUtils {
         } catch (Throwable t) {
             error(t, null, "failed to retrieve blob size for " + tw.getPathString());
         }
+
         return new PathModel(name, tw.getPathString(), filestoreItem, size, tw.getFileMode(0).getBits(),
                 objectId.getName(), commit.getName());
     }
@@ -1217,25 +1177,19 @@ public class JGitUtils {
      * @param commit
      * @return a path model of the specified object
      */
-    private static PathModel getPathModel(Repository repo, String path, String filter, RevCommit commit)
-            throws IOException {
-
+    private static PathModel getPathModel(Repository repo, String path, String filter, RevCommit commit) throws IOException {
         long size = 0;
         FilestoreModel filestoreItem = null;
         TreeWalk tw = TreeWalk.forPath(repo, path, commit.getTree());
         String pathString = path;
 
         if (!tw.isSubtree() && (tw.getFileMode(0) != FileMode.GITLINK)) {
-
             pathString = PathUtils.getLastPathComponent(pathString);
-
             size = tw.getObjectReader().getObjectSize(tw.getObjectId(0), Constants.OBJ_BLOB);
-
             if (isPossibleFilestoreItem(size)) {
                 filestoreItem = getFilestoreItem(tw.getObjectReader().open(tw.getObjectId(0)));
             }
         } else if (tw.isSubtree()) {
-
             // do not display dirs that are behind in the path
             if (!StringUtils.isEmpty(filter)) {
                 pathString = path.replaceFirst(filter + "/", "");
@@ -2726,7 +2680,6 @@ public class JGitUtils {
      * @return the lfs item URL
      */
     public static String getLfsRepositoryUrl(String baseURL, String repositoryName, String oid) {
-
         if (baseURL.length() > 0 && baseURL.charAt(baseURL.length() - 1) == '/') {
             baseURL = baseURL.substring(0, baseURL.length() - 1);
         }
@@ -2846,12 +2799,10 @@ public class JGitUtils {
                         break;
                     case REJECTED:
                     case LOCK_FAILURE:
-                        throw new ConcurrentRefUpdateException(JGitText.get().couldNotLockHEAD,
-                                ru.getRef(), rc);
+                        throw new ConcurrentRefUpdateException(JGitText.get().couldNotLockHEAD, ru.getRef(), rc);
                     default:
                         throw new JGitInternalException(MessageFormat.format(
-                                JGitText.get().updatingRefFailed, branch, commitId.toString(),
-                                rc));
+                                JGitText.get().updatingRefFailed, branch, commitId.toString(), rc));
                 }
             } finally {
                 revWalk.close();
@@ -2902,11 +2853,9 @@ public class JGitUtils {
         return 0;
     }
 
-
     /**
      * Try to identify all referenced tickets from the commit.
      *
-     * @param commit
      * @return a collection of TicketLinks
      */
     public static List<TicketLink> identifyTicketsFromCommitMessage(Repository repository, IStoredSettings settings,
@@ -3037,4 +2986,5 @@ public class JGitUtils {
         }
         return count;
     }
+
 }
